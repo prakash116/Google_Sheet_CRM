@@ -5,7 +5,16 @@ import { motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, type CSSProperties, type FocusEvent, type KeyboardEvent, type MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type CSSProperties,
+  type FocusEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 
 import SmartImage from "@/components/media/SmartImage";
 import type { HeroButton, HeroSlide } from "@/lib/portfolio/types";
@@ -77,7 +86,7 @@ function SlideButton({ button }: { button: HeroButton | null }) {
       href={href}
       onClick={onClick}
       {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-      className={`rounded-full px-7 py-3.5 font-medium transition ${BUTTON_STYLES[button.style] ?? BUTTON_STYLES.primary}`}
+      className={`rounded-full px-6 py-3 text-sm font-medium whitespace-nowrap transition sm:px-7 sm:py-3.5 sm:text-base ${BUTTON_STYLES[button.style] ?? BUTTON_STYLES.primary}`}
     >
       {button.text}
     </a>
@@ -128,10 +137,11 @@ function SlideBackground({
     accent,
     secondary: light ? "#5b4632" : hex(bg?.secondaryColor, accent),
     count: Math.max(10, Math.min(2000, (breakpoint === "mobile" ? settings.mobileParticleCount : null) ?? bg?.particleCount ?? 120)),
-    size: Math.max(0.3, Math.min(6, bg?.particleSize ?? 1.5)),
+    size: Math.max(0.3, Math.min(6, bg?.particleSize ?? 1.5)) * (breakpoint === "mobile" ? 0.6 : 1),
     speed: Math.max(0.05, Math.min(3, bg?.animationSpeed ?? 0.6)),
     mouse: !!bg?.mouseInteraction,
     light,
+    compact: breakpoint === "mobile",
   };
 
   const gradient =
@@ -197,12 +207,13 @@ function PersonImage({
   const photo = slidePhoto(slide, settings, breakpoint);
   if (!photo) return null;
   if (photo.framed) {
+    if (breakpoint === "mobile") return null; // rendered inline above the heading, see SlideContent
     return (
       <PortraitFrame
         frame={frameStyleFor(slide.personImage?.frameStyle, index)}
         src={photo.url}
         alt={photo.alt}
-        mobile={breakpoint === "mobile"}
+        variant="side"
         priority={priority}
         active={active}
       />
@@ -233,16 +244,66 @@ function PersonImage({
   );
 }
 
+/** Phone layout: the framed photo sits in the text column above the heading. */
+function InlinePhoto({
+  slide,
+  settings,
+  breakpoint,
+  index,
+  active,
+}: {
+  slide: HeroSlide;
+  settings: HeroCarouselSettings;
+  breakpoint: Breakpoint;
+  index: number;
+  active: boolean;
+}) {
+  const photo = breakpoint === "mobile" ? slidePhoto(slide, settings, breakpoint) : null;
+  if (!photo?.framed) return null;
+  return (
+    <PortraitFrame
+      frame={frameStyleFor(slide.personImage?.frameStyle, index)}
+      src={photo.url}
+      alt={photo.alt}
+      variant="inline"
+      priority={index === 0}
+      active={active}
+    />
+  );
+}
+
+// Phones always centre the photo, text and buttons; tablet/desktop follow the slide's textAlignment.
 const ALIGN: Record<string, string> = {
-  left: "items-start text-left",
+  left: "items-center text-center mx-auto md:mx-0 md:items-start md:text-left",
   center: "items-center text-center mx-auto",
-  right: "items-end text-right ml-auto",
+  right: "items-center text-center mx-auto md:mx-0 md:ml-auto md:items-end md:text-right",
 };
 
-function SlideContent({ slide, index, active, withPhoto }: { slide: HeroSlide; index: number; active: boolean; withPhoto: boolean }) {
+const JUSTIFY: Record<string, string> = {
+  left: "justify-center md:justify-start",
+  center: "justify-center",
+  right: "justify-center md:justify-end",
+};
+
+function SlideContent({
+  slide,
+  index,
+  active,
+  withPhoto,
+  inlinePhoto,
+}: {
+  slide: HeroSlide;
+  index: number;
+  active: boolean;
+  /** A photo sits to the right (tablet/desktop): keep the text clear of it. */
+  withPhoto: boolean;
+  /** Phone layout: framed photo shown above the heading. */
+  inlinePhoto: ReactNode;
+}) {
   const [before, highlight, after] = splitTitle(slide.title, slide.highlightText);
   const Heading = index === 0 ? "h1" : "h2";
   const align = ALIGN[slide.textAlignment] ?? ALIGN.left;
+  const justify = JUSTIFY[slide.textAlignment] ?? JUSTIFY.left;
   const show = (delay: number) => ({
     initial: { opacity: 0, y: 28 },
     animate: active ? { opacity: 1, y: 0 } : { opacity: 0, y: 28 },
@@ -250,21 +311,22 @@ function SlideContent({ slide, index, active, withPhoto }: { slide: HeroSlide; i
   });
 
   return (
-    <div className="relative z-10 mx-auto flex h-full w-full max-w-7xl items-center px-5 pt-16 pb-28 md:px-10">
-      <div className={`flex w-full flex-col ${withPhoto ? "max-w-3xl md:max-w-[56%]" : "max-w-3xl"} ${align}`}>
+    <div className="relative z-10 mx-auto flex min-h-[max(var(--hero-h-m),var(--hero-mh-m))] w-full max-w-7xl items-center px-5 pt-24 pb-32 sm:px-8 md:h-full md:min-h-0 md:px-10 md:pt-16 md:pb-28">
+      <div className={`flex w-full flex-col ${withPhoto ? "max-w-3xl md:max-w-[56%] lg:max-w-[58%]" : "max-w-3xl"} ${align}`}>
+        {inlinePhoto}
         <motion.div {...show(0.05)}>
-          <Heading className="font-display text-5xl leading-[0.98] tracking-tight text-balance sm:text-6xl md:text-7xl lg:text-8xl">
+          <Heading className="font-display text-[2.5rem] leading-[1.02] tracking-tight text-balance min-[400px]:text-5xl sm:text-6xl md:text-6xl lg:text-7xl xl:text-8xl">
             {before}
             {highlight && <em className="text-accent">{highlight}</em>}
             {after}
           </Heading>
         </motion.div>
         {slide.shortDescription && (
-          <motion.p {...show(0.2)} className="mt-8 max-w-xl text-lg leading-relaxed text-muted">
+          <motion.p {...show(0.2)} className="mt-5 max-w-xl text-base leading-relaxed text-muted sm:mt-6 sm:text-lg md:mt-8">
             {slide.shortDescription}
           </motion.p>
         )}
-        <motion.div {...show(0.35)} className="mt-10 flex flex-wrap items-center gap-4">
+        <motion.div {...show(0.35)} className={`mt-8 flex flex-wrap items-center gap-3 sm:gap-4 md:mt-10 ${justify}`}>
           <SlideButton button={slide.primaryButton} />
           <SlideButton button={slide.secondaryButton} />
         </motion.div>
@@ -336,15 +398,15 @@ export default function HeroCarousel({
       aria-roledescription="carousel"
       aria-label="Highlights"
       style={heightStyle}
-      className="relative h-(--hero-h-m) min-h-(--hero-mh-m) overflow-hidden md:h-(--hero-h-t) md:min-h-(--hero-mh-t) lg:h-(--hero-h-d) lg:min-h-(--hero-mh-d)"
+      className="relative overflow-hidden md:h-(--hero-h-t) md:min-h-(--hero-mh-t) lg:h-(--hero-h-d) lg:min-h-(--hero-mh-d)"
       onKeyDown={onKeyDown}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onFocus={() => setFocused(true)}
       onBlur={onBlur}
     >
-      <div ref={emblaRef} className="h-full overflow-hidden">
-        <div className="flex h-full" aria-live={paused ? "polite" : "off"}>
+      <div ref={emblaRef} className="overflow-hidden md:h-full">
+        <div className="flex md:h-full" aria-live={paused ? "polite" : "off"}>
           {slides.map((slide, i) => {
             const active = i === selected;
             // Mount WebGL only for the active slide and the one after it.
@@ -356,7 +418,7 @@ export default function HeroCarousel({
                 aria-roledescription="slide"
                 aria-label={`${i + 1} of ${total}`}
                 inert={!active}
-                className="relative h-full min-w-0 flex-[0_0_100%]"
+                className="relative min-w-0 flex-[0_0_100%] md:h-full"
               >
                 <SlideBackground
                   slide={slide}
@@ -371,6 +433,7 @@ export default function HeroCarousel({
                   index={i}
                   active={active}
                   withPhoto={breakpoint !== "mobile" && !!slidePhoto(slide, settings, breakpoint)}
+                  inlinePhoto={<InlinePhoto slide={slide} settings={settings} breakpoint={breakpoint} index={i} active={active} />}
                 />
               </div>
             );

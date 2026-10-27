@@ -157,14 +157,15 @@ export default function PortraitFrame({
   frame,
   src,
   alt,
-  mobile,
+  variant,
   priority,
   active,
 }: {
   frame: FrameStyle;
   src: string;
   alt: string;
-  mobile: boolean;
+  /** "side": absolutely placed right of the text (tablet/desktop). "inline": in the text column above the heading (phones). */
+  variant: "side" | "inline";
   priority: boolean;
   active: boolean;
 }) {
@@ -172,9 +173,11 @@ export default function PortraitFrame({
   const Frame = FRAMES[frame];
   return (
     <div
-      aria-hidden={mobile || undefined}
-      className={`pointer-events-none absolute z-5 ${
-        mobile ? "right-3 bottom-24 w-[46%] opacity-35" : "top-1/2 right-[5%] w-[min(30vw,25rem)] -translate-y-1/2 pt-10"
+      className={`pointer-events-none ${
+        variant === "inline"
+          ? "relative mb-8 w-[min(46vw,11.5rem)]"
+          : // hidden below md so phones never flash the side layout before hydration picks "inline"
+            "absolute top-1/2 right-[4%] z-5 hidden w-[min(32vw,25rem)] -translate-y-1/2 pt-10 md:block lg:right-[5%]"
       }`}
     >
       <motion.div
@@ -186,7 +189,7 @@ export default function PortraitFrame({
           animate={reduced || !active ? undefined : { y: [0, -10, 0] }}
           transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
         >
-          <Frame src={src} alt={alt} sizes={mobile ? "46vw" : "(min-width: 1024px) 25rem, 30vw"} priority={priority} reduced={reduced} />
+          <Frame src={src} alt={alt} sizes={variant === "inline" ? "46vw" : "(min-width: 1024px) 25rem, 32vw"} priority={priority} reduced={reduced} />
         </motion.div>
       </motion.div>
     </div>

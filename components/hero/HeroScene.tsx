@@ -14,6 +14,8 @@ export interface SceneConfig {
   mouse: boolean;
   /** Light theme: normal blending so points/lines stay visible on a pale background. */
   light: boolean;
+  /** Phones: camera further back and lighter lines so the scene does not crowd the text. */
+  compact: boolean;
 }
 
 type Pointer = RefObject<{ x: number; y: number }>;
@@ -201,7 +203,13 @@ function GeometricWave({ config, pointer }: { config: SceneConfig; pointer: Poin
     <group ref={group}>
       <group rotation={[-1.05, 0, 0]} position={[0, -1.2, 0]}>
         <mesh ref={mesh} geometry={geometry}>
-          <meshBasicMaterial color={config.secondary} wireframe transparent opacity={config.light ? 0.18 : 0.1} depthWrite={false} />
+          <meshBasicMaterial
+            color={config.secondary}
+            wireframe
+            transparent
+            opacity={(config.light ? 0.18 : 0.1) * (config.compact ? 0.55 : 1)}
+            depthWrite={false}
+          />
         </mesh>
         <points geometry={geometry}>
           <pointsMaterial
@@ -243,8 +251,10 @@ export default function HeroScene({ config, running }: { config: SceneConfig; ru
 
   return (
     <Canvas
+      // Camera props apply on mount only, so remount when switching to/from the phone layout.
+      key={config.compact ? "compact" : "full"}
       dpr={[1, 1.5]}
-      camera={{ position: [0, 0, 7], fov: 55 }}
+      camera={{ position: [0, 0, config.compact ? 9.5 : 7], fov: 55 }}
       frameloop={running ? "always" : "never"}
       gl={{ antialias: false, alpha: true, powerPreference: "high-performance" }}
       style={{ pointerEvents: "none" }}
